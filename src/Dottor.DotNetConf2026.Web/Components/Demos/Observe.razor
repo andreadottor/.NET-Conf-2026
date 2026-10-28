@@ -1,0 +1,9 @@
+<aside class="alert alert-info mt-4">
+    <h2 class="h5">Cosa osservare</h2>
+    @ChildContent
+</aside>
+
+@code {
+    [Parameter, EditorRequired]
+    public RenderFragment ChildContent { get; set; } = default!;
+}

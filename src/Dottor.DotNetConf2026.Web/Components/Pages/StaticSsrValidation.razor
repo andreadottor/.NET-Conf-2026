@@ -1,0 +1,79 @@
+@page "/demo/static-ssr-validation"
+@attribute [ExcludeFromInteractiveRouting]
+@inject SubmitCounter Submits
+
+<PageTitle>Validazione client-side Static SSR</PageTitle>
+<h1>Validazione client-side in Static SSR</h1>
+<p class="lead">Questa pagina non ha un circuito. Blazor genera le regole client dalle DataAnnotations, senza JavaScript applicativo.</p>
+<p class="badge text-bg-secondary">Rendering: Static SSR</p>
+<p>POST effettivamente ricevuti dal server (tutti gli utenti, istanza corrente): <strong id="submit-count">@Submits.Count</strong></p>
+
+<EditForm Model="Model" OnValidSubmit="Submit" OnInvalidSubmit="InvalidSubmit" FormName="static-ticket">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+    <div class="mb-3">
+        <label for="ssr-title" class="form-label">Titolo</label>
+        <InputText id="ssr-title" class="form-control" @bind-Value="Model!.Title" />
+        <ValidationMessage For="() => Model!.Title" />
+    </div>
+    <div class="mb-3">
+        <label for="ssr-description" class="form-label">Descrizione</label>
+        <InputTextArea id="ssr-description" class="form-control" @bind-Value="Model!.Description" />
+        <ValidationMessage For="() => Model!.Description" />
+    </div>
+    <div class="mb-3">
+        <label for="ssr-email" class="form-label">Email</label>
+        <InputText id="ssr-email" class="form-control" @bind-Value="Model!.Email" />
+        <ValidationMessage For="() => Model!.Email" />
+    </div>
+    <div class="mb-3">
+        <label for="ssr-priority" class="form-label">Priorità</label>
+        <InputSelect id="ssr-priority" class="form-select" @bind-Value="Model!.Priority">
+            @* Options must be dynamic frames (not static markup) so the SSR renderer can mark the selected one. *@
+            @foreach (var (value, label) in priorities)
+            {
+                <option value="@value">@label</option>
+            }
+        </InputSelect>
+        <ValidationMessage For="() => Model!.Priority" />
+    </div>
+    <button class="btn btn-primary" type="submit">Invia ticket al server</button>
+</EditForm>
+@if (message is not null)
+{
+    <p class="alert alert-secondary mt-3" role="status" id="ssr-result">@message</p>
+}
+<Observe>
+    <p>Apri Network e invia il form vuoto: compaiono errori senza POST. Compila tutti i campi e invia:
+        solo allora arriva il POST e aumenta il contatore. Il contatore non si aggiorna da solo tra richieste, perché non c'è interattività.</p>
+    <p>La validazione client è solo una facilitazione UX. La validazione server-side è sempre necessaria per sicurezza e integrità dei dati.</p>
+</Observe>
+
+@code {
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromForm]
+    private TicketInput? Model { get; set; }
+    private string? message;
+
+    private static readonly (string Value, string Label)[] priorities =
+    [
+        ("0", "Seleziona..."),
+        ("1", "1 - Bassa"),
+        ("2", "2 - Normale"),
+        ("3", "3 - Alta"),
+        ("4", "4 - Urgente"),
+    ];
+
+    protected override void OnInitialized()
+    {
+        Model ??= new();
+        if (HttpMethods.IsPost(HttpContext.Request.Method))
+        {
+            Submits.Increment();
+        }
+    }
+    private void Submit() => message = $"Ticket '{Model!.Title}' ricevuto e validato dal server.";
+    private void InvalidSubmit() => message = "POST ricevuto ma rifiutato dalla validazione server-side.";
+}

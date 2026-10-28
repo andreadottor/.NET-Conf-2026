@@ -1,7 +1,20 @@
 ﻿@page "/"
 
-<PageTitle>Home</PageTitle>
+<PageTitle>.NET Conf 2026</PageTitle>
 
-<h1>Hello, world!</h1>
-
-Welcome to your new app.
+<h1>ASP.NET Core e Blazor .NET 11</h1>
+<p class="lead">Sei demo locali, indipendenti e pronte da esplorare. SDK .NET 11 RC3, C# 15.</p>
+<div class="row row-cols-1 row-cols-xl-2 g-3">
+    @foreach (var demo in DemoCatalog.All)
+    {
+        <div class="col" @key="demo.Slug">
+            <section class="card h-100">
+                <div class="card-body">
+                    <h2 class="h4">@demo.Title</h2>
+                    <p>@demo.Description</p>
+                    <a class="btn btn-primary" href="@($"demo/{demo.Slug}")">Apri demo</a>
+                </div>
+            </section>
+        </div>
+    }
+</div>

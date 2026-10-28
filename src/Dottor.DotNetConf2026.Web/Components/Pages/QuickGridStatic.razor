@@ -1,0 +1,14 @@
+@page "/demo/quickgrid-static"
+@attribute [ExcludeFromInteractiveRouting]
+
+<PageTitle>QuickGrid Static SSR</PageTitle>
+<h1>QuickGrid in Static SSR</h1>
+<p class="lead">Stessa griglia e stessi dati, senza circuito: intestazioni e paginazione sono link nativi.</p>
+<p><span class="badge text-bg-secondary">Static SSR</span> Il dettaglio si apre con il link, non con un evento .NET sulla riga.
+    <a href="demo/quickgrid">Torna allo scenario interattivo</a>.</p>
+<TicketGrid />
+<Observe>
+    <p>Ordina e cambia pagina: i link funzionano anche senza interattività. Copia l'URL, usa Back e Forward.
+        Ispeziona le intestazioni: sono elementi <code>&lt;a href="..."&gt;</code>.
+        <code>OnRowClick</code> richiede interattività ed è intenzionalmente assente qui.</p>
+</Observe>

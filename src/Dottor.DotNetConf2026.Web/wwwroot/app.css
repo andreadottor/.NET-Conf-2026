@@ -24,6 +24,22 @@ h1:focus {
     outline: none;
 }
 
+.demo-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .75rem;
+    margin-bottom: 1rem;
+}
+
+.index-input { width: 8rem; }
+.diagnostic { background: #f2f4f7; padding: 1rem; }
+.log-viewport { height: 520px; overflow-y: auto; border: 2px solid #6c757d; }
+.log-entry { padding: 1rem; border-bottom: 1px solid #adb5bd; background: white; }
+.log-entry p { margin: .5rem 0; }
+.log-details { padding: .5rem 1rem; background: #eef4fa; }
+.code-panel { padding: 1rem; background: #f2f4f7; }
+
 .valid.modified:not([type=checkbox]) {
     outline: 1px solid #26b050;
 }

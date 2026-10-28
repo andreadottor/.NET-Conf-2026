@@ -1,0 +1,47 @@
+@page "/demo/circuit-pause"
+@using Dottor.DotNetConf2026.Web.Shutdown
+@inject DemoInstance Instance
+@inject ShutdownCircuitHandler Connection
+
+<PageTitle>Circuit Pause & Resume</PageTitle>
+<h1>Circuit Pause &amp; Resume</h1>
+<p class="lead">Il server richiede la pausa prima del deployment. Solo lo stato esplicitamente persistibile viene ripristinato.</p>
+
+<dl class="row diagnostic">
+    <dt class="col-sm-3">Versione applicazione</dt><dd class="col-sm-9" id="app-version">@Instance.Version</dd>
+    <dt class="col-sm-3">PID server</dt><dd class="col-sm-9" id="server-pid">@Instance.ProcessId</dd>
+    <dt class="col-sm-3">Circuito corrente</dt><dd class="col-sm-9 text-break" id="circuit-id">@(Connection.CircuitId ?? "Non ancora connesso (prerendering)")</dd>
+    <dt class="col-sm-3">Connessione</dt><dd class="col-sm-9" id="circuit-status">@(Connection.IsConnected ? "Connesso - Interactive Server" : "Prerendering: interattività in avvio")</dd>
+</dl>
+<p class="fs-4">Contatore: <strong id="counter-value">@Count</strong></p>
+<button id="increment-counter" class="btn btn-primary mb-3" @onclick="() => Count++">Incrementa</button>
+
+<form @onsubmit:preventDefault>
+    <div class="mb-3">
+        <label for="ticket-title" class="form-label">Titolo del ticket</label>
+        <input id="ticket-title" class="form-control" @bind="Title" @bind:event="oninput" />
+    </div>
+    <div class="mb-3">
+        <label for="ticket-description" class="form-label">Descrizione (bozza non salvata)</label>
+        <textarea id="ticket-description" class="form-control" rows="4" @bind="Description" @bind:event="oninput"></textarea>
+    </div>
+</form>
+<Observe>
+    <ol>
+        <li>Porta il contatore a 15 e scrivi una bozza. Apri anche una seconda scheda con dati diversi.</li>
+        <li>Esegui <code>.\scripts\deploy-demo.ps1</code> dalla root del repository.</li>
+        <li>Il dialog distingue disconnessione, pausa e ripresa fallita. La ripresa automatica attende il server.</li>
+        <li>Contatore e testo restano; versione, PID e identificativo del circuito cambiano. Non ricaricare la pagina.</li>
+    </ol>
+    <p>La UI .NET non può aggiornarsi mentre il circuito è offline: gli stati di connessione sono mostrati dal dialog del browser.
+        Solo dati JSON serializzabili; oggetti, servizi in memoria e render tree non vengono ricreati automaticamente.</p>
+</Observe>
+
+@code {
+    [PersistentState]
+    public int Count { get; set; }
+    [PersistentState]
+    public string? Title { get; set; }
+    [PersistentState]
+    public string? Description { get; set; }
+}

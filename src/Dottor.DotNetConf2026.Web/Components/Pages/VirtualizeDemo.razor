@@ -1,0 +1,128 @@
+@page "/demo/virtualize"
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject ILogger<VirtualizeDemo> Logger
+
+<PageTitle>Virtualize: altezze variabili</PageTitle>
+<h1>Virtualize: altezze variabili</h1>
+<p class="lead">10.000 eventi, altezze misurate a runtime senza <code>ItemSize</code> e ancoraggio configurabile. Indice iniziale: 500 (zero-based).</p>
+<div class="demo-toolbar">
+    <label for="anchor-mode">Ancoraggio</label>
+    <select id="anchor-mode" class="form-select w-auto" @bind="anchorMode">
+        <option value="None">Nessuno</option><option value="Start">Inizio (feed)</option><option value="End">Fine (chat / log)</option>
+    </select>
+    <label for="target-index">Indice</label>
+    <input id="target-index" class="form-control index-input" type="number" min="0" max="@(entries.Count - 1)" @bind="targetIndex" />
+    <button class="btn btn-primary" @onclick="GoToIndex">Vai all'indice</button>
+    <button class="btn btn-outline-primary" @onclick="GoToStart">Inizio</button>
+    <button class="btn btn-outline-primary" @onclick="GoToEnd">Fine</button>
+    <button class="btn btn-outline-primary" @onclick="AddEntry">Aggiungi evento</button>
+    <button class="btn btn-outline-secondary" @onclick="ToggleAboveViewport">Espandi/riduci sopra il viewport</button>
+</div>
+<p role="status" id="virtualize-status">@status Elementi: @entries.Count.</p>
+<div id="log-viewport" class="log-viewport" tabindex="0" aria-label="Eventi di log virtualizzati">
+    <Virtualize TItem="LogEntry" Items="entries" Context="entry" @ref="list" InitialItemIndex="500" AnchorMode="anchorMode">
+        <article class="log-entry" @key="entry.Id" data-log-id="@entry.Id">
+            <header><strong>#@entry.Id @entry.Title</strong> <span class="badge text-bg-secondary">@entry.Severity</span></header>
+            <small>@entry.Timestamp.ToString("dd/MM/yyyy HH:mm:ss")</small>
+            <p>@entry.Description</p>
+            <button class="btn btn-sm btn-outline-secondary" @onclick="() => Toggle(entry.Id)">@(expanded.Contains(entry.Id) ? "Riduci" : "Espandi") #@entry.Id</button>
+            @if (expanded.Contains(entry.Id))
+            {
+                <div class="log-details">
+                    @for (var line = 1; line <= 8; line++)
+                    {
+                        <p>Dettaglio @line: analisi evento @entry.Id, operazione locale completata. Questo contenuto modifica l'altezza dell'elemento.</p>
+                    }
+                </div>
+            }
+        </article>
+    </Virtualize>
+</div>
+<Observe>
+    <p>Scorri leggermente e usa il pulsante per modificare l'elemento ancora nel DOM subito sopra il viewport:
+        il primo evento visibile non deve saltare. La modifica delle altezze non richiede codice di compensazione applicativo.</p>
+    <p>Prova indice 9000, Inizio e Fine. L'ancoraggio parte dal default del framework (Inizio): seleziona Fine (chat / log),
+        raggiungi il fondo e aggiungi eventi: la lista resta in fondo. Se scorri verso l'alto, i nuovi eventi non devono portarti via dalla lettura.</p>
+    <p>Vai all'indice e Inizio sospendono il follow impostando Nessuno. Per riprenderlo, seleziona Fine (chat / log)
+        e premi Fine. In RC3 il follow End può prevalere su un salto programmatico dopo un'aggiunta.</p>
+    <p><code>AnchorMode</code> è sperimentale in RC3: opt-in al diagnostico ASP0030 nel progetto.</p>
+</Observe>
+
+@code {
+    private readonly List<LogEntry> entries = Enumerable.Range(0, 10_000).Select(CreateEntry).ToList();
+    private readonly HashSet<int> expanded = [];
+    private Virtualize<LogEntry> list = default!;
+    private IJSObjectReference? module;
+    private VirtualizeAnchorMode anchorMode = VirtualizeAnchorMode.Start;
+    private int targetIndex = 9000;
+    private string status = "Pronto.";
+    private int? requestedIndex;
+
+    private static LogEntry CreateEntry(int id) => new(id, new DateTime(2026, 10, 28, 8, 0, 0).AddSeconds(id),
+        $"Elaborazione evento {id}", string.Join(" ", Enumerable.Repeat(
+            "Operazione del servizio locale: richiesta ricevuta, dati elaborati e risposta inviata.", id % 5 + 1)),
+        new[] { "Informazione", "Avviso", "Errore" }[id % 3]);
+
+    private void GoToIndex() => RequestScroll(targetIndex, suspendFollow: true);
+    private void GoToStart() => RequestScroll(0, suspendFollow: true);
+    private void GoToEnd() => RequestScroll(entries.Count - 1, suspendFollow: false);
+
+    private void RequestScroll(int index, bool suspendFollow)
+    {
+        if (suspendFollow)
+        {
+            anchorMode = VirtualizeAnchorMode.None;
+            status = "Navigazione manuale: follow sospeso (Nessuno).";
+        }
+        requestedIndex = index;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (requestedIndex is { } index)
+        {
+            requestedIndex = null;
+            await list.ScrollToItemAsync(index);
+        }
+    }
+    private void AddEntry()
+    {
+        entries.Add(CreateEntry(entries.Count));
+        status = $"Evento #{entries.Count - 1} aggiunto. Ancoraggio: {anchorMode}.";
+    }
+    private void Toggle(int id)
+    {
+        if (!expanded.Add(id)) expanded.Remove(id);
+    }
+    private async Task ToggleAboveViewport()
+    {
+        try
+        {
+            module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./Components/Pages/VirtualizeDemo.razor.js");
+            var id = await module.InvokeAsync<int?>("findItemAboveViewport");
+            if (id is { } itemId)
+            {
+                Toggle(itemId);
+                status = $"Modificata altezza dell'evento #{itemId} sopra il viewport.";
+            }
+            else
+            {
+                status = "Nessun elemento renderizzato sopra il viewport. Scorri leggermente verso il basso e riprova.";
+            }
+        }
+        catch (JSException exception)
+        {
+            Logger.LogError(exception, "Impossibile individuare l'evento sopra il viewport");
+            status = "Lettura del viewport non riuscita. Consultare i log del server.";
+        }
+    }
+    public async ValueTask DisposeAsync()
+    {
+        if (module is not null)
+        {
+            try { await module.DisposeAsync(); }
+            catch (JSDisconnectedException) { /* The circuit no longer owns a browser connection. */ }
+        }
+    }
+}

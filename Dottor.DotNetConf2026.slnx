@@ -1,3 +1,11 @@
 <Solution>
+  <Folder Name="/scripts/">
+    <File Path="scripts/deploy-demo.ps1" />
+  </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path=".gitignore" />
+    <File Path="global.json" />
+    <File Path="README.md" />
+  </Folder>
   <Project Path="src/Dottor.DotNetConf2026.Web/Dottor.DotNetConf2026.Web.csproj" />
 </Solution>

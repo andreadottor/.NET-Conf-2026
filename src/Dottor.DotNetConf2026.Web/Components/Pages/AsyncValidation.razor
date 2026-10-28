@@ -1,0 +1,98 @@
+@page "/demo/async-validation"
+@implements IDisposable
+@using System.Diagnostics
+@inject UserDirectory Users
+
+<PageTitle>Validazione asincrona</PageTitle>
+<h1>Validazione asincrona</h1>
+<p class="lead">Una sola regola <code>AsyncValidationAttribute</code> condivisa tra Blazor e <code>POST /api/users</code>.</p>
+<p>Email già registrate: <code>anna@example.com</code>, <code>marco@example.com</code>. Archivio in memoria, confronto senza distinzione di maiuscole.</p>
+
+<EditForm EditContext="editContext" OnValidSubmit="RegisterAsync" OnInvalidSubmit="InvalidSubmit" FormName="registration">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+    <div class="mb-3">
+        <label for="full-name" class="form-label">Nome completo</label>
+        <InputText id="full-name" class="form-control" @bind-Value="model.FullName" />
+        <ValidationMessage For="() => model.FullName" />
+    </div>
+    <div class="mb-3">
+        <label for="email" class="form-label">Email (esci dal campo per validare)</label>
+        <InputText id="email" class="form-control" @bind-Value="model.Email" />
+        <ValidationMessage For="() => model.Email" />
+        @if (editContext.IsValidationPending(() => model.Email))
+        {
+            <p role="status" id="email-pending">Verifica email in corso...</p>
+        }
+    </div>
+    <div class="mb-3">
+        <label for="age" class="form-label">Età</label>
+        <InputNumber id="age" class="form-control" @bind-Value="model.Age" />
+        <ValidationMessage For="() => model.Age" />
+    </div>
+    @if (editContext.IsValidationFaulted() || editContext.IsValidationFaulted(() => model.Email))
+    {
+        <p class="alert alert-danger">La validazione non è riuscita. Consultare i log e riprovare.</p>
+    }
+    @if (editContext.IsValidationPending())
+    {
+        <p role="status">Validazione del form in corso...</p>
+    }
+    <button class="btn btn-primary" type="submit" disabled="@(!RendererInfo.IsInteractive || IsPending || submitting)">Registra utente</button>
+</EditForm>
+<div class="card mt-3"><div class="card-body" role="status">
+    <p id="validation-timing">@timing</p>
+    <p id="registration-result">@result</p>
+</div></div>
+<Observe>
+    <p>Invia dati non validi, poi prova un'email duplicata. Il controllo remoto simulato dura circa 800 ms.
+        Cambia email e sposta il focus rapidamente: il framework annulla le validazioni superate.
+        Il submit attende la validazione asincrona prima di creare l'utente.</p>
+    <p>Per le API: invia JSON con <code>fullName</code>, <code>email</code>, <code>age</code>.
+        Il framework restituisce automaticamente HTTP 400 con gli errori; HTTP 201 crea l'utente, HTTP 409 gestisce una registrazione concorrente.</p>
+</Observe>
+
+@code {
+    private readonly UserRegistration model = new();
+    private EditContext editContext = default!;
+    private long? validationStarted;
+    private bool submitting;
+    private string timing = "Nessuna validazione asincrona eseguita.";
+    private string? result;
+    private bool IsPending => editContext.IsValidationPending() || editContext.IsValidationPending(() => model.Email);
+
+    protected override void OnInitialized()
+    {
+        editContext = new(model);
+        editContext.OnValidationStateChanged += ValidationStateChanged;
+    }
+
+    private void ValidationStateChanged(object? sender, ValidationStateChangedEventArgs args)
+    {
+        if (IsPending)
+        {
+            validationStarted ??= Stopwatch.GetTimestamp();
+            timing = "Validazione asincrona in corso...";
+        }
+        else if (validationStarted is { } start)
+        {
+            timing = $"Ultimo ciclo di validazione asincrona: {Stopwatch.GetElapsedTime(start).TotalMilliseconds:F0} ms (include eventuali controlli superati).";
+            validationStarted = null;
+        }
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private async Task RegisterAsync()
+    {
+        submitting = true;
+        var user = Users.TryCreate(model);
+        await Task.Delay(1000); // Simula un ritardo di rete
+        result = user is not null ? $"Utente {user.FullName} creato con ID {user.Id}."
+            : "Email registrata nel frattempo da un'altra richiesta. Modifica l'email e riprova.";
+        submitting = false;
+    }
+
+    private void InvalidSubmit() => result = "Registrazione non eseguita: correggere gli errori.";
+
+    public void Dispose() => editContext.OnValidationStateChanged -= ValidationStateChanged;
+}

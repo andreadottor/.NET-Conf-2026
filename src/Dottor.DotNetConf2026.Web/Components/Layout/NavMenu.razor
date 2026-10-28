@@ -2,12 +2,12 @@
 
 <div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
-        <a class="navbar-brand" href="">Dottor.DotNetConf2026.Web</a>
+        <a class="navbar-brand" href="">.NET Conf 2026</a>
     </div>
 </div>
 
 <nav-menu>
-    <input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+    <input type="checkbox" title="Menu di navigazione" class="navbar-toggler" />
 
     <div class="nav-scrollable">
         <nav class="nav flex-column">
@@ -17,17 +17,12 @@
                 </NavLink>
             </div>
 
-            <div class="nav-item px-3">
-                <NavLink class="nav-link" href="counter">
-                    <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
-                </NavLink>
-            </div>
-
-            <div class="nav-item px-3">
-                <NavLink class="nav-link" href="weather">
-                    <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
-                </NavLink>
-            </div>
+            @foreach (var demo in DemoCatalog.All)
+            {
+                <div class="nav-item px-3" @key="demo.Slug">
+                    <NavLink class="nav-link" href="@($"demo/{demo.Slug}")">@demo.Title</NavLink>
+                </div>
+            }
         </nav>
     </div>
 </nav-menu>

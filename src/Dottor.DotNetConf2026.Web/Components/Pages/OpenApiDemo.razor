@@ -1,0 +1,161 @@
+@page "/demo/openapi"
+@implements IAsyncDisposable
+@using System.Text.Encodings.Web
+@using System.Text.Json
+@using System.Text.Json.Nodes
+@inject IJSRuntime JS
+@inject ILogger<OpenApiDemo> Logger
+
+<PageTitle>OpenAPI 3.2 e union C# 15</PageTitle>
+<h1>OpenAPI 3.2 e union C# 15</h1>
+<p class="lead">Una union nativa descrive un insieme chiuso di forme JSON, senza librerie e senza discriminatori aggiunti artificialmente.</p>
+<pre class="code-panel">public union TicketLookup(Ticket, TicketUnavailable);</pre>
+
+<div class="demo-toolbar">
+    <label for="lookup-left">ID</label>
+    <input id="lookup-left" type="number" class="form-control index-input" @bind="leftId" />
+    <label for="lookup-right">ID</label>
+    <input id="lookup-right" type="number" class="form-control index-input" @bind="rightId" />
+    <button id="call-lookup" class="btn btn-primary" @onclick="CallLookupAsync" disabled="@(!RendererInfo.IsInteractive || busy)">Richiama endpoint union</button>
+    <button id="load-schema" class="btn btn-outline-primary" @onclick="LoadSchemaAsync" disabled="@(!RendererInfo.IsInteractive || busy)">Mostra schema OpenAPI</button>
+    <a class="btn btn-outline-secondary" href="openapi/v1.json" target="_blank" rel="noopener">Documento completo</a>
+</div>
+@if (error is not null)
+{
+    <p class="alert alert-danger" role="alert">@error</p>
+}
+
+@if (responses.Count > 0)
+{
+    <div class="row row-cols-1 row-cols-lg-2 g-3 mb-4" id="lookup-responses">
+        @foreach (var response in responses)
+        {
+            <div class="col">
+                <section class="card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <code>GET @response.Url</code>
+                        <span class="badge @(response.Status is >= 200 and < 300 ? "text-bg-success" : "text-bg-warning")">HTTP @response.Status</span>
+                    </div>
+                    <pre class="code-panel mb-0">@response.Body</pre>
+                </section>
+            </div>
+        }
+    </div>
+}
+
+@if (schema is not null)
+{
+    <h2 class="h4" id="openapi-version">Documento OpenAPI: <code>"openapi": "@schema.Version"</code></h2>
+    <div class="row row-cols-1 row-cols-xl-3 g-3">
+        <div class="col">
+            <section class="card h-100">
+                <div class="card-header"><code>components.schemas.TicketLookup</code></div>
+                <pre class="code-panel mb-0" id="ticketlookup-schema">@schema.TicketLookup</pre>
+            </section>
+        </div>
+        <div class="col">
+            <section class="card h-100">
+                <div class="card-header">200 di <code>/api/tickets/{id}/lookup</code></div>
+                <pre class="code-panel mb-0">@schema.LookupResponse</pre>
+            </section>
+        </div>
+        <div class="col">
+            <section class="card h-100">
+                <div class="card-header">200 di <code>/api/tickets/{id}</code></div>
+                <pre class="code-panel mb-0">@schema.TicketResponse</pre>
+            </section>
+        </div>
+    </div>
+}
+
+<Observe>
+    <ol>
+        <li>Richiama ID 1 e ID 999: due forme JSON distinte, entrambe HTTP 200, nessun <code>$type</code>.
+            Le chiamate partono dal browser: sono visibili anche in DevTools, scheda Network.</li>
+        <li>Mostra lo schema: <code>"openapi": "3.2.0"</code> (opt-in con <code>OpenApiSpecVersion.OpenApi3_2</code>)
+            e <code>TicketLookup</code> con <code>anyOf</code> verso Ticket e TicketUnavailable.</li>
+        <li>Confronta con <code>/api/tickets/{id}</code>: la risposta 200 descrive una sola forma.
+            Su quell'endpoint l'ID 999 restituisce HTTP 404 con Problem Details, non TicketUnavailable.</li>
+    </ol>
+</Observe>
+
+@code {
+    private static readonly JsonSerializerOptions Indented = new() { WriteIndented = true, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+    private IJSObjectReference? module;
+    private int leftId = 1;
+    private int rightId = 999;
+    private bool busy;
+    private string? error;
+    private List<HttpResponseView> responses = [];
+    private OpenApiView? schema;
+
+    private Task CallLookupAsync() => RunAsync(async () =>
+        responses = [await GetAsync($"api/tickets/{leftId}/lookup"), await GetAsync($"api/tickets/{rightId}/lookup")]);
+
+    private Task LoadSchemaAsync() => RunAsync(async () =>
+    {
+        var document = await GetAsync("openapi/v1.json");
+        var root = JsonNode.Parse(document.Body) ?? throw new JsonException("Documento OpenAPI vuoto.");
+        schema = new(
+            root["openapi"]?.GetValue<string>() ?? "?",
+            Format(root["components"]?["schemas"]?["TicketLookup"]),
+            Format(Response200(root, "/api/tickets/{id}/lookup")),
+            Format(Response200(root, "/api/tickets/{id}")));
+    });
+
+    private async Task RunAsync(Func<Task> action)
+    {
+        busy = true;
+        error = null;
+        try
+        {
+            await action();
+        }
+        catch (Exception exception) when (exception is JSException or JsonException or InvalidOperationException)
+        {
+            Logger.LogError(exception, "Chiamata della demo OpenAPI non riuscita");
+            error = "Chiamata non riuscita. Consultare i log del server.";
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private async Task<HttpResponseView> GetAsync(string url)
+    {
+        module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./Components/Pages/OpenApiDemo.razor.js");
+        var result = await module.InvokeAsync<FetchResult>("fetchText", url);
+        return new("/" + url, result.Status, Pretty(result.Body));
+    }
+
+    private static JsonNode? Response200(JsonNode root, string path) =>
+        root["paths"]?[path]?["get"]?["responses"]?["200"]?["content"]?["application/json"]?["schema"];
+
+    private static string Format(JsonNode? node) => node?.ToJsonString(Indented) ?? "(non presente)";
+
+    private static string Pretty(string json)
+    {
+        try
+        {
+            return JsonNode.Parse(json)?.ToJsonString(Indented) ?? json;
+        }
+        catch (JsonException)
+        {
+            return json;
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (module is not null)
+        {
+            try { await module.DisposeAsync(); }
+            catch (JSDisconnectedException) { /* The circuit no longer owns a browser connection. */ }
+        }
+    }
+
+    private sealed record FetchResult(int Status, string Body);
+    private sealed record HttpResponseView(string Url, int Status, string Body);
+    private sealed record OpenApiView(string Version, string TicketLookup, string LookupResponse, string TicketResponse);
+}
