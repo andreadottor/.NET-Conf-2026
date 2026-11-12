@@ -22,7 +22,10 @@
         <ValidationMessage For="() => model.Email" />
         @if (editContext.IsValidationPending(() => model.Email))
         {
-            <p role="status" id="email-pending">Verifica email in corso...</p>
+            <p role="status" id="email-pending">
+                <img src="~/validation-spinner.gif" alt="" width="24" height="24" />
+                Verifica email in corso...
+            </p>
         }
     </div>
     <div class="mb-3">
