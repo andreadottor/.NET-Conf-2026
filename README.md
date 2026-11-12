@@ -11,10 +11,10 @@ Una sola Blazor Web App su .NET 11, con dati in memoria e nessun servizio estern
 | 1 | Circuit Pause & Resume | `/demo/circuit-pause` | Pausa richiesta dal server durante un deployment e pausa automatica della scheda nascosta (AutoPause, opt-in): stato `[PersistentState]` ripristinato senza ricaricare la pagina |
 | 2 | Validazione asincrona | `/demo/async-validation` | `AsyncValidationAttribute` in Blazor e nelle Minimal API |
 | 3 | Validazione client-side in Static SSR | `/demo/static-ssr-validation` | DataAnnotations validate nel browser, senza circuito, più un messaggio flash con `TempData` (POST-Redirect-GET) |
-| 4 | Virtualize | `/demo/virtualize` | Altezze variabili misurate a runtime e `AnchorMode` |
-| 5 | QuickGrid | `/demo/quickgrid` · `/demo/quickgrid-static` | Ordinamento e paginazione nell'URL, `OnRowClick` |
-| 6 | OpenAPI 3.2 e union C# 15 | `/demo/openapi` | Una union nativa descritta come `anyOf` e `[Obsolete]` tradotto in `deprecated: true` |
-| 7 | CacheView | `/demo/cacheview` | Output caching di una porzione di pagina Static SSR con `ExpiresAfter` e `VaryByQuery` |
+| 4 | CacheView | `/demo/cacheview` | Output caching di una porzione di pagina Static SSR con `ExpiresAfter` e `VaryByQuery` |
+| 5 | Virtualize | `/demo/virtualize` | Altezze variabili misurate a runtime e `AnchorMode` |
+| 6 | QuickGrid | `/demo/quickgrid` · `/demo/quickgrid-static` | Ordinamento e paginazione nell'URL, `OnRowClick` |
+| 7 | OpenAPI 3.2 e union C# 15 | `/demo/openapi` | Una union nativa descritta come `anyOf` e `[Obsolete]` tradotto in `deprecated: true` |
 
 ## Requisiti
 
