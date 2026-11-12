@@ -66,6 +66,22 @@
             </section>
         </div>
     </div>
+
+    <h2 class="h4 mt-4" id="openapi-deprecated"><code>[Obsolete]</code> → <code>"deprecated": true</code></h2>
+    <div class="row row-cols-1 row-cols-xl-2 g-3">
+        <div class="col">
+            <section class="card h-100">
+                <div class="card-header"><code>paths["/api/tickets/{id}/legacy"].get</code> (estratto)</div>
+                <pre class="code-panel mb-0" id="legacy-operation">@schema.LegacyOperation</pre>
+            </section>
+        </div>
+        <div class="col">
+            <section class="card h-100">
+                <div class="card-header"><code>components.schemas.LegacyTicket</code></div>
+                <pre class="code-panel mb-0" id="legacy-schema">@schema.LegacySchema</pre>
+            </section>
+        </div>
+    </div>
 }
 
 <Observe>
@@ -76,6 +92,9 @@
             e <code>TicketLookup</code> con <code>anyOf</code> verso Ticket e TicketUnavailable.</li>
         <li>Confronta con <code>/api/tickets/{id}</code>: la risposta 200 descrive una sola forma.
             Su quell'endpoint l'ID 999 restituisce HTTP 404 con Problem Details, non TicketUnavailable.</li>
+        <li>In fondo allo schema: l'handler di <code>/api/tickets/{id}/legacy</code> e la proprietà <code>LegacyTicket.Severity</code>
+            sono marcati <code>[Obsolete]</code>, senza configurazione aggiuntiva: nel JSON compaiono come <code>"deprecated": true</code>
+            sull'operazione e su <code>properties.severity</code>. L'endpoint continua a rispondere: deprecated è solo documentazione per i client.</li>
     </ol>
 </Observe>
 
@@ -100,7 +119,9 @@
             root["openapi"]?.GetValue<string>() ?? "?",
             Format(root["components"]?["schemas"]?["TicketLookup"]),
             Format(Response200(root, "/api/tickets/{id}/lookup")),
-            Format(Response200(root, "/api/tickets/{id}")));
+            Format(Response200(root, "/api/tickets/{id}")),
+            Format(OperationExcerpt(root["paths"]?["/api/tickets/{id}/legacy"]?["get"])),
+            Format(root["components"]?["schemas"]?["LegacyTicket"]));
     });
 
     private async Task RunAsync(Func<Task> action)
@@ -132,6 +153,13 @@
     private static JsonNode? Response200(JsonNode root, string path) =>
         root["paths"]?[path]?["get"]?["responses"]?["200"]?["content"]?["application/json"]?["schema"];
 
+    private static JsonNode? OperationExcerpt(JsonNode? operation) => operation is null ? null : new JsonObject
+    {
+        ["summary"] = operation["summary"]?.DeepClone(),
+        ["deprecated"] = operation["deprecated"]?.DeepClone() ?? "(assente)",
+        ["responses.200"] = operation["responses"]?["200"]?["content"]?["application/json"]?["schema"]?.DeepClone(),
+    };
+
     private static string Format(JsonNode? node) => node?.ToJsonString(Indented) ?? "(non presente)";
 
     private static string Pretty(string json)
@@ -157,5 +185,6 @@
 
     private sealed record FetchResult(int Status, string Body);
     private sealed record HttpResponseView(string Url, int Status, string Body);
-    private sealed record OpenApiView(string Version, string TicketLookup, string LookupResponse, string TicketResponse);
+    private sealed record OpenApiView(string Version, string TicketLookup, string LookupResponse, string TicketResponse,
+        string LegacyOperation, string LegacySchema);
 }

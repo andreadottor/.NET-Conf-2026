@@ -1,6 +1,7 @@
 using System.Net;
 using Dottor.DotNetConf2026.Web.Models;
 using Dottor.DotNetConf2026.Web.Services;
+using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Dottor.DotNetConf2026.Web.Endpoints;
 
@@ -32,6 +33,11 @@ public static class DemoEndpoints
                     detail: $"Il ticket {id} non è presente nell'archivio in memoria."))
             .Produces<Ticket>().ProducesProblem(StatusCodes.Status404NotFound);
 
+#pragma warning disable CS0618 // The handler is intentionally obsolete: OpenAPI exports it as deprecated.
+        app.MapGet("/api/tickets/{id:int}/legacy", LegacyTicketById)
+            .WithSummary("Contratto legacy: [Obsolete] diventa deprecated: true nel documento OpenAPI");
+#pragma warning restore CS0618
+
         if (app.Environment.IsDevelopment())
         {
             app.MapPost("/demo/shutdown", (HttpContext context, IHostApplicationLifetime lifetime) =>
@@ -56,4 +62,13 @@ public static class DemoEndpoints
     private static TicketLookup Lookup(int id, TicketCatalog tickets) => tickets.Find(id) is { } ticket
         ? new TicketLookup(ticket)
         : new TicketLookup(new TicketUnavailable(id, "Ticket non presente nell'archivio in memoria."));
+
+    [Obsolete("Usare GET /api/tickets/{id}.")]
+    private static Results<Ok<LegacyTicket>, NotFound> LegacyTicketById(int id, TicketCatalog tickets) =>
+        tickets.Find(id) is { } ticket
+            ? TypedResults.Ok(new LegacyTicket(ticket.Id, ticket.Title, ticket.Priority)
+            {
+                Severity = ticket.Priority >= 3 ? "alta" : "normale"
+            })
+            : TypedResults.NotFound();
 }

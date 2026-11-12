@@ -1,12 +1,17 @@
 @page "/demo/static-ssr-validation"
 @attribute [ExcludeFromInteractiveRouting]
 @inject SubmitCounter Submits
+@inject NavigationManager Navigation
 
 <PageTitle>Validazione client-side Static SSR</PageTitle>
 <h1>Validazione client-side in Static SSR</h1>
 <p class="lead">Questa pagina non ha un circuito. Blazor genera le regole client dalle DataAnnotations, senza JavaScript applicativo.</p>
 <p class="badge text-bg-secondary">Rendering: Static SSR</p>
 <p>POST effettivamente ricevuti dal server (tutti gli utenti, istanza corrente): <strong id="submit-count">@Submits.Count</strong></p>
+@if (flash is not null)
+{
+    <p class="alert alert-success" role="status" id="ssr-flash">@flash <small>(TempData: mostrato una sola volta)</small></p>
+}
 
 <EditForm Model="Model" OnValidSubmit="Submit" OnInvalidSubmit="InvalidSubmit" FormName="static-ticket">
     <DataAnnotationsValidator />
@@ -47,6 +52,10 @@
     <p>Apri Network e invia il form vuoto: compaiono errori senza POST. Compila tutti i campi e invia:
         solo allora arriva il POST e aumenta il contatore. Il contatore non si aggiorna da solo tra richieste, perché non c'è interattività.</p>
     <p>La validazione client è solo una facilitazione UX. La validazione server-side è sempre necessaria per sicurezza e integrità dei dati.</p>
+    <p><strong>TempData (POST-Redirect-GET):</strong> dopo un invio valido il server risponde con un redirect e il messaggio verde compare una sola volta.
+        Premi F5: il messaggio sparisce e il browser non chiede di reinviare il form. In Network: POST → 302 → GET e il cookie
+        <code>.AspNetCore.Components.TempData</code>. Provider cookie predefinito: nessuna configurazione, funziona perché questa pagina non usa streaming rendering.
+        <code>[SupplyParameterFromTempData]</code> è bidirezionale: a fine richiesta il valore corrente della proprietà viene salvato, quindi il messaggio va azzerato dopo la lettura.</p>
 </Observe>
 
 @code {
@@ -56,6 +65,11 @@
     [SupplyParameterFromForm]
     private TicketInput? Model { get; set; }
     private string? message;
+    private string? flash;
+
+    // At the end of the request the framework saves the property's current value back to TempData.
+    [SupplyParameterFromTempData(Name = "StaticSsrFlash")]
+    public string? Flash { get; set; }
 
     private static readonly (string Value, string Label)[] priorities =
     [
@@ -69,11 +83,17 @@
     protected override void OnInitialized()
     {
         Model ??= new();
+        // Consume the flash message: clearing the property prevents it from being saved again.
+        (flash, Flash) = (Flash, null);
         if (HttpMethods.IsPost(HttpContext.Request.Method))
         {
             Submits.Increment();
         }
     }
-    private void Submit() => message = $"Ticket '{Model!.Title}' ricevuto e validato dal server.";
+    private void Submit()
+    {
+        Flash = $"Ticket '{Model!.Title}' ricevuto e validato dal server.";
+        Navigation.NavigateTo("demo/static-ssr-validation", forceLoad: true);
+    }
     private void InvalidSubmit() => message = "POST ricevuto ma rifiutato dalla validazione server-side.";
 }

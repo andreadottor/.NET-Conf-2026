@@ -12,12 +12,25 @@ let autoResumeRunning = false;
 let resumeRunning = false;
 
 function handleReconnectStateChanged(event) {
-    if (["show", "paused", "resume-failed"].includes(event.detail.state)) {
+    const state = event.detail.state;
+    if (["paused", "resume-failed"].includes(state)) {
+        // remote === true only when the server requested the pause (deployment);
+        // false when the browser paused the circuit (auto-pause on hidden tab).
+        reconnectModal.dataset.pauseOrigin = event.detail.remote ? "server" : "client";
+        console.info(`[demo] ${new Date().toLocaleTimeString()} circuito ${state}, origine: ${reconnectModal.dataset.pauseOrigin}`);
+    }
+    if (["show", "paused", "resume-failed"].includes(state)) {
         reconnectModal.showModal();
-        if (event.detail.state !== "show") {
+        // A client pause is resumed by the auto-pause package when the tab becomes visible again:
+        // polling /health here would resume the circuit while the tab is still hidden.
+        if (state === "resume-failed" || (state === "paused" && event.detail.remote)) {
             void autoResume();
         }
-    } else if (event.detail.state === "hide") {
+    } else if (state === "hide") {
+        if (reconnectModal.dataset.pauseOrigin) {
+            console.info(`[demo] ${new Date().toLocaleTimeString()} circuito ripreso dopo pausa ${reconnectModal.dataset.pauseOrigin}`);
+        }
+        delete reconnectModal.dataset.pauseOrigin;
         reconnectModal.close();
         diagnostic.textContent = "";
     } else if (event.detail.state === "failed") {
@@ -60,7 +73,9 @@ async function resume() {
     try {
         const successful = await Blazor.resumeCircuit();
         if (!successful) {
-            diagnostic.textContent = "Ripristino rifiutato. Non ricaricare finché il deployment non è terminato.";
+            diagnostic.textContent = reconnectModal.dataset.pauseOrigin === "client"
+                ? "Ripristino rifiutato. Lo stato persistito potrebbe non essere più valido: ricaricare crea una nuova sessione."
+                : "Ripristino rifiutato. Non ricaricare finché il deployment non è terminato.";
         } else {
             reconnectModal.close();
             diagnostic.textContent = "";

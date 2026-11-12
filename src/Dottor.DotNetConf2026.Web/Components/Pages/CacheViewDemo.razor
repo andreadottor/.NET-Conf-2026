@@ -1,0 +1,80 @@
+@page "/demo/cacheview"
+@attribute [ExcludeFromInteractiveRouting]
+
+<PageTitle>CacheView</PageTitle>
+<h1>CacheView</h1>
+<p class="lead">Lo stesso report renderizzato due volte: una porzione viene ricalcolata a ogni richiesta, l'altra riusa l'HTML generato da <code>&lt;CacheView&gt;</code>.</p>
+<p><span class="badge text-bg-secondary">Static SSR</span> Il caching riguarda l'output di un sottoalbero durante il rendering statico lato server:
+    non è un cache generico per componenti interattivi né una cache per utente.</p>
+
+<nav class="demo-toolbar" aria-label="Categoria del report">
+    @foreach (var link in Links)
+    {
+        <a class="btn @(IsCurrent(link.Href) ? "btn-primary" : "btn-outline-primary")" href="@link.Href">@link.Label</a>
+    }
+    <span>Richiesta servita alle <strong id="request-time">@requestTime.ToString("HH:mm:ss.fff")</strong> (fuori dalla cache)</span>
+</nav>
+
+@if (!CategoryReportService.IsKnown(Category))
+{
+    <div class="alert alert-warning" id="unknown-category">
+        Categoria <code>@Category</code> non prevista. Il report non viene renderizzato né messo in cache:
+        valori arbitrari nella query creerebbero una voce di cache per ciascun valore.
+    </div>
+}
+else
+{
+    <div class="row row-cols-1 row-cols-lg-2 g-3">
+        <div class="col">
+            <CategoryReportView Category="@Category" Portion="live" Heading="Senza cache (ricalcolato a ogni richiesta)" />
+        </div>
+        <div class="col">
+            <CacheView VaryByQuery="category" ExpiresAfter="CacheDuration">
+                <CategoryReportView Category="@Category" Portion="cache" Heading="Dentro CacheView" ExpiresAfter="CacheDuration" />
+            </CacheView>
+        </div>
+    </div>
+}
+
+<Observe>
+    <ol>
+        <li>Premi F5 più volte: a sinistra ora e numero di generazione cambiano sempre; a destra restano uguali (cache hit, il componente non viene eseguito).</li>
+        <li>Passa a <em>software</em> e poi di nuovo a <em>hardware</em>: <code>VaryByQuery="category"</code> crea una voce per ogni valore e ognuna ha la propria scadenza.</li>
+        <li>Prova <em>software + utm</em>: il parametro extra non è nella chiave, quindi viene servita la stessa voce di <em>software</em>.</li>
+        <li>Dopo @CacheDuration.TotalSeconds secondi (<code>ExpiresAfter</code>) la voce scade: la richiesta successiva rigenera il report e il numero a destra aumenta.</li>
+    </ol>
+    <p>Limiti: chiave = componente padre + posizione + valori <code>VaryBy*</code>; senza <code>VaryBy*</code> utenti e query diverse condividono lo stesso HTML.
+        Non esiste un'invalidazione esplicita documentata: conta solo la scadenza. Dati per utente richiedono <code>VaryByUser</code>/<code>VaryByCookie</code>.
+        Cache in memoria del processo (100 MB di default, oppure <code>HybridCache</code> se registrato): si svuota al riavvio e non è condivisa fra nodi.
+        I contatori della demo sono nel processo e ripartono da zero a ogni riavvio. Non usare dentro un sottoalbero con streaming rendering né con <code>Virtualize</code>.</p>
+</Observe>
+
+@code {
+    private static readonly TimeSpan CacheDuration = TimeSpan.FromSeconds(20);
+    private static readonly (string Label, string Href)[] Links =
+    [
+        ("hardware", "demo/cacheview?category=hardware"),
+        ("software", "demo/cacheview?category=software"),
+        ("software + utm", "demo/cacheview?category=software&utm=slide"),
+    ];
+
+    private readonly DateTimeOffset requestTime = DateTimeOffset.Now;
+
+    [Inject]
+    public NavigationManager Navigation { get; set; } = default!;
+
+    [SupplyParameterFromQuery(Name = "category")]
+    public string? Category { get; set; }
+
+    protected override void OnInitialized()
+    {
+        if (string.IsNullOrEmpty(Category))
+        {
+            // A single canonical URL per category keeps the VaryByQuery keys predictable.
+            Navigation.NavigateTo("demo/cacheview?category=hardware");
+        }
+    }
+
+    private bool IsCurrent(string href) =>
+        Navigation.ToBaseRelativePath(Navigation.Uri).Equals(href, StringComparison.Ordinal);
+}
