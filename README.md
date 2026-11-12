@@ -17,7 +17,7 @@ Una sola Blazor Web App su .NET 11, con dati in memoria e nessun servizio estern
 
 ## Requisiti
 
-- **.NET 11 SDK RC3** (`11.0.100-rc.3.26522.148`, fissato in `global.json`)
+- **.NET 11 SDK** (`11.0.100`, fissato in `global.json`)
 - Visual Studio 2026 oppure la CLI `dotnet`
 
 ## Avvio
