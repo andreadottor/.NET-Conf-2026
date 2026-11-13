@@ -14,6 +14,26 @@ public static class DemoEndpoints
             status = "Healthy", instance.Version, instance.ProcessId
         }));
 
+        if (app.Environment.IsDevelopment())
+        {
+            app.MapPost("/demo/shutdown", (HttpContext context, IHostApplicationLifetime lifetime) =>
+            {
+                var address = context.Connection.RemoteIpAddress;
+                if (address is null || !IPAddress.IsLoopback(address) ||
+                    context.Request.Headers["X-Demo-Deployment"] != "local")
+                {
+                    return Results.Problem("Shutdown consentito solo da loopback con header X-Demo-Deployment: local.", statusCode: 403);
+                }
+
+                context.Response.OnCompleted(() =>
+                {
+                    ThreadPool.QueueUserWorkItem(_ => lifetime.StopApplication());
+                    return Task.CompletedTask;
+                });
+                return Results.Accepted(value: new { message = "Shutdown controllato richiesto" });
+            }).ExcludeFromDescription();
+        }
+
         app.MapPost("/api/users", (UserRegistration model, UserDirectory users) =>
         {
             var user = users.TryCreate(model);
@@ -37,26 +57,6 @@ public static class DemoEndpoints
         app.MapGet("/api/tickets/{id:int}/legacy", LegacyTicketById)
             .WithSummary("Contratto legacy: [Obsolete] diventa deprecated: true nel documento OpenAPI");
 #pragma warning restore CS0618
-
-        if (app.Environment.IsDevelopment())
-        {
-            app.MapPost("/demo/shutdown", (HttpContext context, IHostApplicationLifetime lifetime) =>
-            {
-                var address = context.Connection.RemoteIpAddress;
-                if (address is null || !IPAddress.IsLoopback(address) ||
-                    context.Request.Headers["X-Demo-Deployment"] != "local")
-                {
-                    return Results.Problem("Shutdown consentito solo da loopback con header X-Demo-Deployment: local.", statusCode: 403);
-                }
-
-                context.Response.OnCompleted(() =>
-                {
-                    ThreadPool.QueueUserWorkItem(_ => lifetime.StopApplication());
-                    return Task.CompletedTask;
-                });
-                return Results.Accepted(value: new { message = "Shutdown controllato richiesto" });
-            }).ExcludeFromDescription();
-        }
     }
 
     private static TicketLookup Lookup(int id, TicketCatalog tickets) => tickets.Find(id) is { } ticket

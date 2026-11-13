@@ -11,7 +11,7 @@ public sealed class UniqueEmailAttribute : AsyncValidationAttribute
     protected override async Task<ValidationResult?> IsValidAsync(
                                                             object? value, 
                                                             ValidationContext validationContext, 
-                                                            CancellationToken cancellationToken)
+                                                            CancellationToken ct)
     {
         if (value is not string email 
             || string.IsNullOrWhiteSpace(email) 
@@ -22,7 +22,7 @@ public sealed class UniqueEmailAttribute : AsyncValidationAttribute
 
         var users = validationContext.GetRequiredService<UserDirectory>();
 
-        return await users.EmailExistsAsync(email, cancellationToken)
+        return await users.EmailExistsAsync(email, ct)
             ? new ValidationResult("Email già registrata.")
             : ValidationResult.Success;
     }
