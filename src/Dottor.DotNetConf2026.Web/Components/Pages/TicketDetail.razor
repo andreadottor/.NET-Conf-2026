@@ -3,6 +3,7 @@
 
 <PageTitle>Dettaglio ticket</PageTitle>
 <h1>Dettaglio ticket #@Id</h1>
+
 @if (Tickets.Find(Id) is { } ticket)
 {
     <dl class="row">
@@ -17,6 +18,7 @@ else
 {
     <p class="alert alert-warning">Ticket non presente.</p>
 }
+
 <p>Usa Back del browser per tornare alla stessa pagina e allo stesso ordinamento.</p>
 <a href="demo/quickgrid">Apri la griglia iniziale</a>
 

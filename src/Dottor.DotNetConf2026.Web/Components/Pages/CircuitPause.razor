@@ -56,27 +56,7 @@
         <textarea id="ticket-description" class="form-control" rows="4" @bind="Description" @bind:event="oninput"></textarea>
     </div>
 </form>
-<Observe>
-    <h3 class="h6">Scenario 1 - pausa richiesta dal server (deployment)</h3>
-    <ol>
-        <li>Porta il contatore a 15 e scrivi una bozza. Apri anche una seconda scheda con dati diversi.</li>
-        <li>Esegui <code>.\scripts\deploy-demo.ps1</code> dalla root del repository.</li>
-        <li>Il dialog distingue disconnessione, pausa e ripresa fallita. La ripresa automatica attende il server.</li>
-        <li>Contatore e testo restano; versione, PID e identificativo del circuito cambiano. Non ricaricare la pagina.</li>
-    </ol>
-    <h3 class="h6">Scenario 2 - pausa automatica con scheda nascosta (opt-in)</h3>
-    <ol>
-        <li>Apri DevTools <strong>sganciato in una finestra separata</strong> su questa scheda: Network, filtro <code>WS</code>, e Console.</li>
-        <li>Incrementa il contatore, scrivi titolo e bozza, poi clicca fuori dai campi (un campo con focus e testo modificato rimanda la pausa).</li>
-        <li>Passa a una seconda scheda e resta lì oltre @AutoPauseOptions.Value.HiddenDelay.TotalSeconds secondi: la connessione <code>_blazor</code> si chiude,
-            la Console registra <code>[demo] ... origine: client</code> e il terminale del server mostra la chiusura del circuito.</li>
-        <li>Torna sulla scheda: il circuito riprende con una nuova connessione. Contatore e testi restano; Circuit ID e "Componente creato alle" cambiano; PID e versione no.</li>
-    </ol>
-    <p>La pausa automatica è globale per le pagine Interactive Server, il rinvio per audio, video, Web Locks o lavoro in corso è <em>best effort</em>
-        e il comportamento dipende dal browser (su mobile non è garantito). Disattivabile con <code>AutoPause__Enabled=false</code>.</p>
-    <p>La UI .NET non può aggiornarsi mentre il circuito è offline: gli stati di connessione sono mostrati dal dialog del browser.
-        Solo dati JSON serializzabili; oggetti, servizi in memoria, timer e render tree non vengono ricreati automaticamente.</p>
-</Observe>
+
 
 @code {
     private readonly DateTimeOffset componentCreatedAt = DateTimeOffset.Now;

@@ -1,107 +1,53 @@
 using Microsoft.AspNetCore.Components.Server.Circuits;
 using Microsoft.Extensions.Options;
+using System.Collections.Concurrent;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Dottor.DotNetConf2026.Web.Shutdown;
 
-public sealed class CircuitShutdownService : IDisposable
+public sealed class CircuitShutdownService
 {
-    private readonly object gate = new();
-    private readonly Dictionary<string, Circuit> circuits = [];
-    private readonly TaskCompletionSource drained = new(TaskCreationOptions.RunContinuationsAsynchronously);
-    private readonly ILogger<CircuitShutdownService> logger;
-    private readonly TimeSpan timeout;
-    private readonly CancellationTokenRegistration stoppingRegistration;
-    private bool stopping;
-    private CancellationToken shutdownToken;
+    private readonly ConcurrentDictionary<string, Circuit> _circuits = new();
+    private readonly ShutdownCircuitOptions _options;
+    private bool _isShuttingDown;
+    private TaskCompletionSource _shutdownTcs = new();
 
-    public CircuitShutdownService(IHostApplicationLifetime lifetime,
-        IOptions<ShutdownCircuitOptions> options, ILogger<CircuitShutdownService> logger)
+    public bool IsStopping { get { return _isShuttingDown; } }
+
+    public CircuitShutdownService(IHostApplicationLifetime appLifetime, IOptions<ShutdownCircuitOptions> options)
     {
-        this.logger = logger;
-        timeout = options.Value.ShutdownTimeout;
-        stoppingRegistration = lifetime.ApplicationStopping.Register(Drain);
+        _options = options.Value;
+        appLifetime.ApplicationStopping.Register(OnApplicationStopping);
     }
 
-    public bool IsStopping { get { lock (gate) { return stopping; } } }
-
-    public void Register(Circuit circuit)
+    private void OnApplicationStopping()
     {
-        bool requestPause;
-        lock (gate)
-        {
-            circuits[circuit.Id] = circuit;
-            requestPause = stopping;
-        }
-        logger.LogInformation("Circuito connesso: {CircuitId}", circuit.Id);
-        if (requestPause)
-        {
-            _ = RequestPauseAsync(circuit, shutdownToken);
-        }
+        _isShuttingDown = true;
+
+        if (_circuits.IsEmpty)
+            return;
+
+        var pauseTasks = _circuits.Values
+                            .Select(c => c.RequestCircuitPauseAsync())
+                            .Append(_shutdownTcs.Task);
+
+        Task.WhenAll(pauseTasks).Wait(_options.ShutdownTimeout);
+
+        _shutdownTcs.Task.Wait(_options.ShutdownTimeout);
     }
 
-    public void Unregister(Circuit circuit)
+    public void Register(string circuitId, Circuit circuit)
     {
-        lock (gate)
-        {
-            circuits.Remove(circuit.Id);
-            if (stopping && circuits.Count == 0)
-            {
-                drained.TrySetResult();
-            }
-        }
-        logger.LogInformation("Circuito disconnesso: {CircuitId}", circuit.Id);
+        _circuits.TryAdd(circuitId, circuit);
     }
 
-    private void Drain()
+    public void Unregister(string circuitId)
     {
-        using var deadline = new CancellationTokenSource(timeout);
-        Circuit[] snapshot;
-        lock (gate)
-        {
-            stopping = true;
-            shutdownToken = deadline.Token;
-            snapshot = circuits.Values.ToArray();
-            if (snapshot.Length == 0)
-            {
-                drained.TrySetResult();
-            }
-        }
-        logger.LogInformation("Avvio shutdown: {Count} circuiti, timeout {Timeout}", snapshot.Length, timeout);
-        try
-        {
-            // Acceptance is not persistence: wait for connection-down notifications as well.
-            Task.WhenAll(snapshot.Select(c => RequestPauseAsync(c, deadline.Token)).Append(drained.Task))
-                .WaitAsync(deadline.Token).GetAwaiter().GetResult();
-            logger.LogInformation("Shutdown: tutti i circuiti connessi hanno completato la disconnessione");
-        }
-        catch (OperationCanceledException) when (deadline.IsCancellationRequested)
-        {
-            lock (gate)
-            {
-                logger.LogWarning("Timeout shutdown: {Count} circuiti ancora connessi; ripristino non garantito", circuits.Count);
-            }
-        }
-        logger.LogInformation("Completamento drain shutdown; il processo host può terminare");
-    }
+        _circuits.TryRemove(circuitId, out _);
 
-    private async Task RequestPauseAsync(Circuit circuit, CancellationToken token)
-    {
-        try
+        if (_isShuttingDown && _circuits.IsEmpty)
         {
-            logger.LogInformation("Richiesta sospensione: {CircuitId}", circuit.Id);
-            var accepted = await circuit.RequestCircuitPauseAsync(token);
-            logger.LogInformation("Richiesta sospensione {CircuitId}: accettata={Accepted} (non conferma il salvataggio)", circuit.Id, accepted);
-        }
-        catch (OperationCanceledException) when (token.IsCancellationRequested)
-        {
-            logger.LogWarning("Richiesta sospensione scaduta: {CircuitId}", circuit.Id);
-        }
-        catch (Exception exception)
-        {
-            // One failed client must not prevent the other circuits from draining.
-            logger.LogError(exception, "Errore richiesta sospensione: {CircuitId}", circuit.Id);
+            _shutdownTcs.TrySetResult();
         }
     }
-
-    public void Dispose() => stoppingRegistration.Dispose();
 }

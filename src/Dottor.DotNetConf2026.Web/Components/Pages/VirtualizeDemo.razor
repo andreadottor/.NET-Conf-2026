@@ -9,7 +9,9 @@
 <div class="demo-toolbar">
     <label for="anchor-mode">Ancoraggio</label>
     <select id="anchor-mode" class="form-select w-auto" @bind="anchorMode">
-        <option value="None">Nessuno</option><option value="Start">Inizio (feed)</option><option value="End">Fine (chat / log)</option>
+        <option value="None">Nessuno</option>
+        <option value="Start">Inizio (feed)</option>
+        <option value="End">Fine (chat / log)</option>
     </select>
     <label for="target-index">Indice</label>
     <input id="target-index" class="form-control index-input" type="number" min="0" max="@(entries.Count - 1)" @bind="targetIndex" />
@@ -39,15 +41,6 @@
         </article>
     </Virtualize>
 </div>
-<Observe>
-    <p>Scorri leggermente e usa il pulsante per modificare l'elemento ancora nel DOM subito sopra il viewport:
-        il primo evento visibile non deve saltare. La modifica delle altezze non richiede codice di compensazione applicativo.</p>
-    <p>Prova indice 9000, Inizio e Fine. L'ancoraggio parte dal default del framework (Inizio): seleziona Fine (chat / log),
-        raggiungi il fondo e aggiungi eventi: la lista resta in fondo. Se scorri verso l'alto, i nuovi eventi non devono portarti via dalla lettura.</p>
-    <p>Vai all'indice e Inizio sospendono il follow impostando Nessuno. Per riprenderlo, seleziona Fine (chat / log)
-        e premi Fine. Se il follow Fine prevale su un salto programmatico dopo un'aggiunta, premi Fine per tornare al fondo.</p>
-    <p><code>AnchorMode</code> è sperimentale in .NET 11: opt-in al diagnostico ASP0030 nel progetto.</p>
-</Observe>
 
 @code {
     private readonly List<LogEntry> entries = Enumerable.Range(0, 10_000).Select(CreateEntry).ToList();
@@ -66,7 +59,7 @@
 
     private void GoToIndex() => RequestScroll(targetIndex, suspendFollow: true);
     private void GoToStart() => RequestScroll(0, suspendFollow: true);
-    private void GoToEnd() => RequestScroll(entries.Count - 1, suspendFollow: false);
+    private void GoToEnd()   => RequestScroll(entries.Count - 1, suspendFollow: false);
 
     private void RequestScroll(int index, bool suspendFollow)
     {
@@ -93,7 +86,8 @@
     }
     private void Toggle(int id)
     {
-        if (!expanded.Add(id)) expanded.Remove(id);
+        if (!expanded.Add(id))
+            expanded.Remove(id);
     }
     private async Task ToggleAboveViewport()
     {
@@ -101,6 +95,7 @@
         {
             module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./Components/Pages/VirtualizeDemo.razor.js");
             var id = await module.InvokeAsync<int?>("findItemAboveViewport");
+
             if (id is { } itemId)
             {
                 Toggle(itemId);
@@ -121,7 +116,10 @@
     {
         if (module is not null)
         {
-            try { await module.DisposeAsync(); }
+            try
+            {
+                await module.DisposeAsync();
+            }
             catch (JSDisconnectedException) { /* The circuit no longer owns a browser connection. */ }
         }
     }

@@ -7,14 +7,16 @@ public static class CircuitShutdownExtensions
     public static WebApplicationBuilder AddCircuitShutdown(this WebApplicationBuilder builder)
     {
         builder.Services.AddOptions<ShutdownCircuitOptions>()
-            .BindConfiguration("CircuitShutdown")
-            .Validate(options => options.ShutdownTimeout > TimeSpan.Zero && options.ShutdownTimeout < TimeSpan.FromSeconds(50),
-                "CircuitShutdown:ShutdownTimeout deve essere positivo e inferiore a 50 secondi.")
-            .ValidateOnStart();
+                        .BindConfiguration("CircuitShutdown")
+                        .Validate(options => options.ShutdownTimeout > TimeSpan.Zero && options.ShutdownTimeout < TimeSpan.FromSeconds(50),
+                            "CircuitShutdown:ShutdownTimeout deve essere positivo e inferiore a 50 secondi.")
+                        .ValidateOnStart();
         builder.Host.ConfigureHostOptions(options => options.ShutdownTimeout = TimeSpan.FromSeconds(60));
+
         builder.Services.AddSingleton<CircuitShutdownService>();
         builder.Services.AddScoped<ShutdownCircuitHandler>();
         builder.Services.AddScoped<CircuitHandler>(services => services.GetRequiredService<ShutdownCircuitHandler>());
+        
         return builder;
     }
 

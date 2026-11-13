@@ -84,20 +84,6 @@
     </div>
 }
 
-<Observe>
-    <ol>
-        <li>Richiama ID 1 e ID 999: due forme JSON distinte, entrambe HTTP 200, nessun <code>$type</code>.
-            Le chiamate partono dal browser: sono visibili anche in DevTools, scheda Network.</li>
-        <li>Mostra lo schema: <code>"openapi": "3.2.0"</code> (opt-in con <code>OpenApiSpecVersion.OpenApi3_2</code>)
-            e <code>TicketLookup</code> con <code>anyOf</code> verso Ticket e TicketUnavailable.</li>
-        <li>Confronta con <code>/api/tickets/{id}</code>: la risposta 200 descrive una sola forma.
-            Su quell'endpoint l'ID 999 restituisce HTTP 404 con Problem Details, non TicketUnavailable.</li>
-        <li>In fondo allo schema: l'handler di <code>/api/tickets/{id}/legacy</code> e la proprietà <code>LegacyTicket.Severity</code>
-            sono marcati <code>[Obsolete]</code>, senza configurazione aggiuntiva: nel JSON compaiono come <code>"deprecated": true</code>
-            sull'operazione e su <code>properties.severity</code>. L'endpoint continua a rispondere: deprecated è solo documentazione per i client.</li>
-    </ol>
-</Observe>
-
 @code {
     private static readonly JsonSerializerOptions Indented = new() { WriteIndented = true, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
     private IJSObjectReference? module;
@@ -126,7 +112,7 @@
 
     private async Task RunAsync(Func<Task> action)
     {
-        busy = true;
+        busy  = true;
         error = null;
         try
         {
@@ -185,6 +171,5 @@
 
     private sealed record FetchResult(int Status, string Body);
     private sealed record HttpResponseView(string Url, int Status, string Body);
-    private sealed record OpenApiView(string Version, string TicketLookup, string LookupResponse, string TicketResponse,
-        string LegacyOperation, string LegacySchema);
+    private sealed record OpenApiView(string Version, string TicketLookup, string LookupResponse, string TicketResponse, string LegacyOperation, string LegacySchema);
 }

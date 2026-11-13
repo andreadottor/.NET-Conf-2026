@@ -36,19 +36,6 @@ else
     </div>
 }
 
-<Observe>
-    <ol>
-        <li>Premi F5 più volte: a sinistra ora e numero di generazione cambiano sempre; a destra restano uguali (cache hit, il componente non viene eseguito).</li>
-        <li>Passa a <em>software</em> e poi di nuovo a <em>hardware</em>: <code>VaryByQuery="category"</code> crea una voce per ogni valore e ognuna ha la propria scadenza.</li>
-        <li>Prova <em>software + utm</em>: il parametro extra non è nella chiave, quindi viene servita la stessa voce di <em>software</em>.</li>
-        <li>Dopo @CacheDuration.TotalSeconds secondi (<code>ExpiresAfter</code>) la voce scade: la richiesta successiva rigenera il report e il numero a destra aumenta.</li>
-    </ol>
-    <p>Limiti: chiave = componente padre + posizione + valori <code>VaryBy*</code>; senza <code>VaryBy*</code> utenti e query diverse condividono lo stesso HTML.
-        Non esiste un'invalidazione esplicita documentata: conta solo la scadenza. Dati per utente richiedono <code>VaryByUser</code>/<code>VaryByCookie</code>.
-        Cache in memoria del processo (100 MB di default, oppure <code>HybridCache</code> se registrato): si svuota al riavvio e non è condivisa fra nodi.
-        I contatori della demo sono nel processo e ripartono da zero a ogni riavvio. Non usare dentro un sottoalbero con streaming rendering né con <code>Virtualize</code>.</p>
-</Observe>
-
 @code {
     private static readonly TimeSpan CacheDuration = TimeSpan.FromSeconds(20);
     private static readonly (string Label, string Href)[] Links =

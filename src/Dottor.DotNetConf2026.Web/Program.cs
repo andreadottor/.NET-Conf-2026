@@ -13,14 +13,18 @@ builder.Services.AddSingleton<UserDirectory>();
 builder.Services.AddSingleton<TicketCatalog>();
 builder.Services.AddSingleton<SubmitCounter>();
 builder.Services.AddSingleton<CategoryReportService>();
+
 builder.Services.AddOptions<AutoPauseDemoOptions>()
-    .Bind(builder.Configuration.GetSection("AutoPause"))
-    .Validate(options => options.HiddenDelay > TimeSpan.Zero, "AutoPause:HiddenDelay deve essere maggiore di zero.")
-    .ValidateOnStart();
+                .Bind(builder.Configuration.GetSection("AutoPause"))
+                .Validate(options => options.HiddenDelay > TimeSpan.Zero, "AutoPause:HiddenDelay deve essere maggiore di zero.")
+                .ValidateOnStart();
+
 builder.Services.AddValidation();
+
 builder.Services.AddOpenApi(options => options.OpenApiVersion = Microsoft.OpenApi.OpenApiSpecVersion.OpenApi3_2);
+
 builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
+                .AddInteractiveServerComponents();
 
 var app = builder.Build();
 
@@ -33,6 +37,7 @@ if (!app.Environment.IsDevelopment())
 }
 app.UseWhen(context => !context.Request.Path.StartsWithSegments("/api"), branch =>
     branch.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true));
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseHttpsRedirection();
@@ -43,6 +48,7 @@ app.UseCircuitShutdown();
 app.MapDemoEndpoints();
 app.MapOpenApi();
 app.MapStaticAssets();
+
 var autoPause = app.Services.GetRequiredService<IOptions<AutoPauseDemoOptions>>().Value;
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()

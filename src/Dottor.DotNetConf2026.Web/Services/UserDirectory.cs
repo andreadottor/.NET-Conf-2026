@@ -5,25 +5,26 @@ namespace Dottor.DotNetConf2026.Web.Services;
 
 public sealed class UserDirectory
 {
-    private readonly ConcurrentDictionary<string, RegisteredUser> users = new(StringComparer.OrdinalIgnoreCase);
-    private int nextId = 2;
+    private readonly ConcurrentDictionary<string, RegisteredUser> _users = new(StringComparer.OrdinalIgnoreCase);
+    private int _nextId = 2;
 
     public UserDirectory()
     {
-        users["anna@example.com"] = new(1, "Anna Rossi", "anna@example.com", 32);
-        users["marco@example.com"] = new(2, "Marco Bianchi", "marco@example.com", 41);
+        _users["anna@example.com"]  = new(1, "Anna Rossi", "anna@example.com", 32);
+        _users["marco@example.com"] = new(2, "Marco Bianchi", "marco@example.com", 41);
     }
 
     public async Task<bool> EmailExistsAsync(string email, CancellationToken cancellationToken)
     {
         await Task.Delay(800, cancellationToken);
-        return users.ContainsKey(email.Trim());
+        return _users.ContainsKey(email.Trim());
     }
 
     public RegisteredUser? TryCreate(UserRegistration model)
     {
-        var user = new RegisteredUser(Interlocked.Increment(ref nextId), model.FullName.Trim(), model.Email.Trim(), model.Age);
-        return users.TryAdd(user.Email, user) ? user : null;
+        var userId = Interlocked.Increment(ref _nextId);
+        var user   = new RegisteredUser(userId, model.FullName.Trim(), model.Email.Trim(), model.Age);
+        return _users.TryAdd(user.Email, user) ? user : null;
     }
 }
 

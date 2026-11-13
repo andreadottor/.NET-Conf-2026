@@ -48,15 +48,6 @@
 {
     <p class="alert alert-secondary mt-3" role="status" id="ssr-result">@message</p>
 }
-<Observe>
-    <p>Apri Network e invia il form vuoto: compaiono errori senza POST. Compila tutti i campi e invia:
-        solo allora arriva il POST e aumenta il contatore. Il contatore non si aggiorna da solo tra richieste, perché non c'è interattività.</p>
-    <p>La validazione client è solo una facilitazione UX. La validazione server-side è sempre necessaria per sicurezza e integrità dei dati.</p>
-    <p><strong>TempData (POST-Redirect-GET):</strong> dopo un invio valido il server risponde con un redirect e il messaggio verde compare una sola volta.
-        Premi F5: il messaggio sparisce e il browser non chiede di reinviare il form. In Network: POST → 302 → GET e il cookie
-        <code>.AspNetCore.Components.TempData</code>. Provider cookie predefinito: nessuna configurazione, funziona perché questa pagina non usa streaming rendering.
-        <code>[SupplyParameterFromTempData]</code> è bidirezionale: a fine richiesta il valore corrente della proprietà viene salvato, quindi il messaggio va azzerato dopo la lettura.</p>
-</Observe>
 
 @code {
     [CascadingParameter]
@@ -90,10 +81,12 @@
             Submits.Increment();
         }
     }
+    
     private void Submit()
     {
         Flash = $"Ticket '{Model!.Title}' ricevuto e validato dal server.";
         Navigation.NavigateTo("demo/static-ssr-validation", forceLoad: true);
     }
+
     private void InvalidSubmit() => message = "POST ricevuto ma rifiutato dalla validazione server-side.";
 }

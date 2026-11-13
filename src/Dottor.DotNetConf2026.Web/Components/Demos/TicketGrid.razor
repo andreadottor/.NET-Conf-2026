@@ -2,7 +2,10 @@
 @inject NavigationManager Navigation
 
 <div class="table-responsive">
-    <QuickGrid Items="Tickets.All" Pagination="pagination" Class="table table-striped" OnRowClick="RowClick">
+    <QuickGrid Items="Tickets.All" 
+               Pagination="pagination" 
+               Class="table table-striped" 
+               OnRowClick="RowClick">
         <PropertyColumn Property="@(ticket => ticket.Id)" Title="ID" />
         <PropertyColumn Property="@(ticket => ticket.Title)" Title="Titolo" Sortable="true" IsDefaultSortColumn="true" />
         <PropertyColumn Property="@(ticket => ticket.Priority)" Title="Priorita" Sortable="true" />
@@ -10,7 +13,7 @@
         <PropertyColumn Property="@(ticket => ticket.CreatedAt)" Title="Creazione" Sortable="true" Format="dd/MM/yyyy HH:mm" />
         <PropertyColumn Property="@(ticket => ticket.AssignedTo)" Title="Assegnato a" />
         <TemplateColumn Title="Dettaglio" Context="ticket">
-            <a href="@($"demo/tickets/{ticket.Id}")">Apri #@ticket.Id</a>
+            <a href="@($"demo/tickets/{ticket.Id}")" onclick="event.stopPropagation()">Apri #@ticket.Id</a>
         </TemplateColumn>
     </QuickGrid>
 </div>
@@ -22,7 +25,9 @@
     [Parameter]
     public bool Interactive { get; set; }
     private readonly PaginationState pagination = new() { ItemsPerPage = 10 };
+    
     private EventCallback<Ticket> RowClick => Interactive
-        ? EventCallback.Factory.Create<Ticket>(this, OpenTicket) : default;
+                ? EventCallback.Factory.Create<Ticket>(this, OpenTicket) : default;
+
     private void OpenTicket(Ticket ticket) => Navigation.NavigateTo($"demo/tickets/{ticket.Id}");
 }
